@@ -1,6 +1,26 @@
 // Simplified Cost Estimator for AI Agent Workload
 import React, { useMemo, useState } from "react";
 
+// --- Centralized cost variables (edit here to update app-wide) ---
+export const COSTS = {
+  // Subscriptions / seats
+  langchainPlusSeatPerMonth: 39,
+
+  // Infrastructure
+  productionUptimePerMinute: 0.0036, // $/min when agent is running 24/7
+  daysPerMonth: 30, // used for monthly uptime calculation
+
+  // Per-ticket processing costs
+  llmReadPerTicket: 0.0003,
+  receiptProcessingPerTicket: 0.005,
+
+  // Workflow resolution costs
+  missingPointsTicketResolutionPerTicket: 0.03, // ~20-step workflow
+  otherTicketResolutionAveragePerTicket: 0.005, // average across 1–10 steps
+  otherTicketResolutionMinPerTicket: 0.001,
+  otherTicketResolutionMaxPerTicket: 0.01,
+};
+
 // --- Helper logic for simplified cost calculation ---
 export function calculateSimplifiedCosts({
   ticketsPerMonth = 1000,
@@ -11,21 +31,23 @@ export function calculateSimplifiedCosts({
   const otherTickets = ticketsPerMonth - missingPointsTickets;
   
   // LangChain Plus seats
-  const langChainCost = langChainSeats * 39;
+  const langChainCost = langChainSeats * COSTS.langchainPlusSeatPerMonth;
   
   // Production uptime (24/7 @ $0.0036/min)
-  const minutesPerMonth = 24 * 60 * 30; // 30 days
-  const productionUptimeCost = minutesPerMonth * 0.0036;
+  const minutesPerMonth = 24 * 60 * COSTS.daysPerMonth;
+  const productionUptimeCost = minutesPerMonth * COSTS.productionUptimePerMinute;
   
   // Missing Points Tickets breakdown
-  const missingPointsTicketResolution = missingPointsTickets * 0.02; // $0.02 per ticket
-  const missingPointsLLMCalls = missingPointsTickets * 0.0003; // $0.0003 per ticket
-  const missingPointsReceiptProcessing = missingPointsTickets * 0.004; // $0.004 per receipt
+  const missingPointsTicketResolution =
+    missingPointsTickets * COSTS.missingPointsTicketResolutionPerTicket;
+  const missingPointsLLMCalls = missingPointsTickets * COSTS.llmReadPerTicket;
+  const missingPointsReceiptProcessing =
+    missingPointsTickets * COSTS.receiptProcessingPerTicket;
   const missingPointsSubtotal = missingPointsTicketResolution + missingPointsLLMCalls + missingPointsReceiptProcessing;
   
   // All Other Tickets breakdown
-  const otherTicketsResolution = otherTickets * 0.005; // Average $0.005 per ticket (1-10 steps)
-  const otherTicketsLLMCalls = otherTickets * 0.0003; // $0.0003 per ticket
+  const otherTicketsResolution = otherTickets * COSTS.otherTicketResolutionAveragePerTicket;
+  const otherTicketsLLMCalls = otherTickets * COSTS.llmReadPerTicket;
   const otherTicketsSubtotal = otherTicketsResolution + otherTicketsLLMCalls;
   
   // Total monthly cost
@@ -66,8 +88,9 @@ export default function SimplifiedCostEstimator() {
   );
 
   return (
-    <div className="p-8 max-w-6xl mx-auto bg-white rounded-2xl shadow-lg">
-      <h1 className="text-3xl font-bold text-center mb-8">AI Agent Cost Calculator</h1>
+    <div className="p-8 max-w-6xl mx-auto bg-white mt-8">
+      <h1 className="text-3xl font-bold text-center mb-4">AI Agent Cost Calculator (Monthly)</h1>
+      <p className="text-center text-gray-600 mb-16 max-w-[84ch] mx-auto">All numbers are estimates as of August 2025. The goal is to get a ballpark figure for the ongoing cost of running an AI agent. In order to be conservative, we've used the highest cost model and the highest cost for production uptime. This calculator does not include the cost of the agent build.</p>
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Left Section: AI Agent Workload */}
@@ -144,7 +167,7 @@ export default function SimplifiedCostEstimator() {
               </div>
             </div>
             <div className="text-sm text-gray-600 mt-1">
-              Seats for tracing and observability
+              {"Seats for tracing and observability @ $" + COSTS.langchainPlusSeatPerMonth + "/seat"}
             </div>
             
             {/* Production uptime */}
@@ -153,7 +176,7 @@ export default function SimplifiedCostEstimator() {
               <div className="font-semibold">${results.productionUptimeCost.toFixed(2)}</div>
             </div>
             <div className="text-sm text-gray-600 mt-1 mb-8">
-              Agent runs 24/7 @ $0.0036 / min
+              {"Agent runs 24/7 @ $" + COSTS.productionUptimePerMinute.toFixed(4) + " / min"}
             </div>
             
                          {/* Missing Points Tickets */}
@@ -170,7 +193,7 @@ export default function SimplifiedCostEstimator() {
                      <div>${results.missingPointsTicketResolution.toFixed(2)}</div>
                    </div>
                    <div className="text-sm text-gray-600 mt-1 pr-16">
-                     A full missing points agent workflow is about 20 steps (nodes) and costs $0.02 to run per ticket
+                     {"A full missing points agent workflow is about 25 steps (nodes), estimated cost ~$" + COSTS.missingPointsTicketResolutionPerTicket.toFixed(2) + " per ticket"}
                    </div>
                  </div>
                  
@@ -180,7 +203,7 @@ export default function SimplifiedCostEstimator() {
                      <div>${(results.missingPointsLLMCalls + results.missingPointsReceiptProcessing).toFixed(2)}</div>
                    </div>
                    <div className="text-sm text-gray-600 mt-1 pr-16  mb-4">
-                     Reading a ticket costs ~$0.0003. Reading a receipt costs ~$0.004.
+                     {"Estimated cost per ticket ~$" + COSTS.llmReadPerTicket.toFixed(4) + " + estimated cost of receipt image processing ~$" + COSTS.receiptProcessingPerTicket.toFixed(3)}
                    </div>
                  </div>
                </div>
@@ -200,7 +223,7 @@ export default function SimplifiedCostEstimator() {
                      <div>${results.otherTicketsResolution.toFixed(2)}</div>
                    </div>
                    <div className="text-sm text-gray-600 mt-1 pr-16">
-                     Non-missing points ticket workflows are between 1-10 steps, costing between $0.001 and $0.01 per ticket
+                     {"Non-missing points ticket workflows are between 1-10 steps, estimated cost between $" + COSTS.otherTicketResolutionMinPerTicket.toFixed(3) + " and $" + COSTS.otherTicketResolutionMaxPerTicket.toFixed(2) + " per ticket"}
                    </div>
                  </div>
                  
@@ -210,7 +233,7 @@ export default function SimplifiedCostEstimator() {
                      <div>${results.otherTicketsLLMCalls.toFixed(2)}</div>
                    </div>
                    <div className="text-sm text-gray-600 mt-1 pr-16">
-                     Reading a ticket costs ~$0.0003
+                     {"Estimated cost per ticket ~$" + COSTS.llmReadPerTicket.toFixed(4)}
                    </div>
                  </div>
                </div>
